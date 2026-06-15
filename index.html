@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>极简时钟导航</title>
+    <style>
+        /* ================= 基础样式 ================= */
+        body { 
+            background-color: #f2f2f7; 
+            margin: 0; 
+            font-family: -apple-system, sans-serif; 
+            overscroll-behavior: none; 
+        }
+        ::-webkit-scrollbar { display: none; }
+
+        /* ================= 主页视图 (时钟+导航) ================= */
+        #view-home { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding-top: 60px; 
+            height: 100vh; 
+            box-sizing: border-box;
+        }
+        
+        #clock { text-align: center; margin-bottom: 40px; cursor: pointer; user-select: none; }
+        #date { font-size: 16px; color: #636366; margin-bottom: 8px; font-weight: 500; }
+        #time { font-size: 52px; font-weight: 700; color: #000; font-variant-numeric: tabular-nums; }
+        
+        .nav-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 92%; max-width: 600px; }
+        .nav-item { 
+            background: white; padding: 16px 8px; border-radius: 16px; text-decoration: none; color: #1c1c1e; 
+            font-size: 14px; font-weight: 500; text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.06); 
+            -webkit-touch-callout: none; user-select: none; transform: translateZ(0); 
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* 统一的悬浮添加按钮 */
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 54px; height: 54px; background: #007AFF; color: white; border-radius: 50%; border: none; font-size: 32px; box-shadow: 0 4px 12px rgba(0,122,255,0.3); z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+
+        /* ================= 倒数日视图 ================= */
+        #view-cd { 
+            display: none; 
+            padding: 20px; 
+            padding-bottom: 100px; 
+            min-height: 100vh; 
+            box-sizing: border-box; 
+            max-width: 500px; 
+            margin: auto;
+        }
+
+        .cd-header { display: flex; align-items: center; margin-bottom: 20px; margin-top: 20px; }
+        .back-btn { background: white; border: none; padding: 10px 16px; border-radius: 14px; font-size: 15px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.06); color: #1c1c1e; cursor: pointer; }
+
+        .cd-card { background: white; padding: 18px; border-radius: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05); cursor: pointer; user-select: none; }
+        .date-text { color: #888; font-size: 13px; display: none; margin-top: 4px; }
+
+        /* ================= 弹窗统一样式 ================= */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 300; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+        .modal-content { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 80%; max-width: 300px; display: flex; flex-direction: column; gap: 12px; }
+        .modal-title { margin: 0 0 5px 0; font-size: 18px; font-weight: 600; text-align: center; }
+        
+        /* 统一输入框尺寸，放大防止误触和缩放 */
+        .input-style { 
+            height: 50px; 
+            padding: 0 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 12px; 
+            font-size: 16px; /* 16px可防止iOS Safari自动缩放 */
+            width: 100%; 
+            box-sizing: border-box; 
+            -webkit-appearance: none; 
+            font-family: inherit;
+            background: white;
+            color: #1c1c1e;
+        }
+        
+        .btn-primary { padding: 14px; background: #000; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 16px; cursor: pointer; margin-top: 5px; }
+        .btn-cancel { background: none; color: #8e8e93; border: none; padding: 10px; font-size: 15px; cursor: pointer; }
+
+        .backup-links { display: flex; justify-content: center; gap: 20px; font-size: 13px; color: #888; margin-top: 10px; padding-top: 15px; border-top: 1px solid #eee; }
+        .backup-links span { cursor: pointer; color: #007AFF; }
+    </style>
+</head>
+<body>
+
+    <div id="view-home">
+        <div id="clock">
+            <div id="date">--</div>
+            <div id="time">--:--:--</div>
+        </div>
+
+        <div class="nav-grid" id="nav-container"></div>
+        <button class="fab" onclick="toggleNavModal()">+</button>
+    </div>
+
+    <div id="view-cd">
+        <div class="cd-header">
+            <button class="back-btn" onclick="hideCdView()">❮ 返回</button>
+        </div>
+        
+        <div id="cd-list"></div>
+        <button class="fab" onclick="openCdModal()">+</button>
+    </div>
+
+    <div id="nav-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">添加网址</h3>
+            <input type="text" id="nav-name" class="input-style" placeholder="网站名称 (如: 百度)">
+            <input type="text" id="nav-url" class="input-style" placeholder="网址 (如: baidu.com)">
+            <button class="btn-primary" style="background:#007AFF;" onclick="addSite()">保存链接</button>
+            <button class="btn-cancel" onclick="toggleNavModal()">取消</button>
+            
+            <div class="backup-links">
+                <span onclick="exportData()">导出备份</span>
+                <span onclick="document.getElementById('importFile').click()">导入恢复</span>
+            </div>
+            <input type="file" id="importFile" style="display:none" onchange="importData(this)">
+        </div>
+    </div>
+
+    <div id="cd-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title" id="cdModalTitle">新建事件</h3>
+            <input type="text" id="cd-name" class="input-style" placeholder="事件名称">
+            <input type="date" id="cd-date" class="input-style">
+            <button class="btn-primary" style="background:#007AFF;" onclick="saveCd()">确定保存</button>
+            <button class="btn-cancel" onclick="closeCdModal()">取消</button>
+        </div>
+    </div>
+
+    <script>
+        // ======= 视图切换 =======
+        function showCdView() {
+            document.getElementById('view-home').style.display = 'none';
+            document.getElementById('view-cd').style.display = 'block';
+            renderCd();
+        }
+
+        function hideCdView() {
+            document.getElementById('view-cd').style.display = 'none';
+            document.getElementById('view-home').style.display = 'flex';
+        }
+
+        // ======= 时钟逻辑 =======
+        function updateClock() {
+            const n = new Date();
+            document.getElementById('date').innerText = n.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+            document.getElementById('time').innerText = n.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        setInterval(updateClock, 1000);
+
+        // ======= 导航逻辑 (包含固定的倒数日入口) =======
+        function renderNav() {
+            const sites = JSON.parse(localStorage.getItem('mySites') || '[]');
+            const container = document.getElementById('nav-container');
+            const fragment = document.createDocumentFragment();
+            
+            // 1. 固定添加倒数日入口 (样式与普通网址一致)
+            const cdBtn = document.createElement('div');
+            cdBtn.className = 'nav-item';
+            cdBtn.innerText = '倒数日';
+            cdBtn.style.cursor = 'pointer';
+            cdBtn.onclick = showCdView;
+            fragment.appendChild(cdBtn);
+            
+            // 2. 渲染用户保存的网址
+            sites.forEach((site, index) => {
+                const a = document.createElement('a');
+                a.className = 'nav-item';
+                a.innerText = site.name;
+                a.href = site.url.startsWith('http') ? site.url : 'https://' + site.url;
+                a.target = "_blank";
+                a.dataset.index = index; 
+                fragment.appendChild(a);
+            });
+            
+            container.innerHTML = '';
+            container.appendChild(fragment);
+        }
+
+        // 高性能事件委托：长按删除
+        const navContainer = document.getElementById('nav-container');
+        let navTimer;
+        navContainer.addEventListener('touchstart', (e) => {
+            const target = e.target.closest('.nav-item');
+            if (!target || target.dataset.index === undefined) return;
+            
+            navTimer = setTimeout(() => {
+                if (confirm(`删除网站 [${target.innerText}] ？`)) {
+                    const sites = JSON.parse(localStorage.getItem('mySites') || '[]');
+                    sites.splice(target.dataset.index, 1);
+                    localStorage.setItem('mySites', JSON.stringify(sites));
+                    renderNav();
+                }
+            }, 600);
+        }, { passive: true });
+        navContainer.addEventListener('touchend', () => clearTimeout(navTimer));
+
+        function toggleNavModal() { 
+            const m = document.getElementById('nav-modal'); 
+            m.style.display = (m.style.display === 'flex') ? 'none' : 'flex'; 
+        }
+        
+        function addSite() {
+            const name = document.getElementById('nav-name').value.trim();
+            const url = document.getElementById('nav-url').value.trim();
+            if(!name || !url) return;
+            const sites = JSON.parse(localStorage.getItem('mySites') || '[]');
+            sites.push({name, url});
+            localStorage.setItem('mySites', JSON.stringify(sites));
+            document.getElementById('nav-name').value = '';
+            document.getElementById('nav-url').value = '';
+            toggleNavModal();
+            renderNav();
+        }
+
+        // ======= 倒数日逻辑 =======
+        let cdEditIndex = -1;
+
+        function renderCd() {
+            let list = JSON.parse(localStorage.getItem('events') || '[]');
+            const today = new Date().setHours(0,0,0,0);
+            list.sort((a, b) => Math.abs(new Date(a.date) - today) - Math.abs(new Date(b.date) - today));
+            
+            let html = '';
+            list.forEach((e, i) => {
+                const diffDays = Math.floor((new Date(e.date).setHours(0,0,0,0) - today) / 86400000);
+                html += `<div class="cd-card" onclick="toggleDate(${i})">
+                    <div><strong style="font-size:16px;">${e.name}</strong><br><small class="date-text" id="date-${i}">${e.date}</small></div>
+                    <div style="text-align:right" onclick="event.stopPropagation()">
+                        <div style="font-size:24px; font-weight:bold" onclick="openCdModal(${i})">${Math.abs(diffDays)}</div>
+                        <small style="color:#888" onclick="openCdModal(${i})">${diffDays >= 0 ? '天后' : '天前'}</small>
+                        <br><button onclick="delCd(${i})" style="border:none; color:#ff3b30; background:none; padding:5px 0 0 0; margin-top:2px; font-size:12px; cursor:pointer;">删除</button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('cd-list').innerHTML = html;
+        }
+
+        function openCdModal(index = -1) {
+            cdEditIndex = index;
+            const list = JSON.parse(localStorage.getItem('events') || '[]');
+            if (index > -1) {
+                document.getElementById('cdModalTitle').innerText = "修改事件";
+                document.getElementById('cd-name').value = list[index].name;
+                document.getElementById('cd-date').value = list[index].date;
+            } else {
+                document.getElementById('cdModalTitle').innerText = "新建事件";
+                document.getElementById('cd-name').value = '';
+                document.getElementById('cd-date').value = '';
+            }
+            document.getElementById('cd-modal').style.display = 'flex';
+        }
+
+        function closeCdModal() { document.getElementById('cd-modal').style.display = 'none'; }
+
+        function saveCd() {
+            let n = document.getElementById('cd-name').value.trim();
+            let d = document.getElementById('cd-date').value;
+            if(!n || !d) return alert("请完整填写");
+            let list = JSON.parse(localStorage.getItem('events') || '[]');
+            if (cdEditIndex > -1) list[cdEditIndex] = {name: n, date: d};
+            else list.push({name: n, date: d});
+            
+            localStorage.setItem('events', JSON.stringify(list));
+            closeCdModal();
+            renderCd();
+        }
+
+        function toggleDate(i) {
+            const el = document.getElementById(`date-${i}`);
+            el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function delCd(i) {
+            if(confirm("确定删除吗？")) {
+                let list = JSON.parse(localStorage.getItem('events') || '[]');
+                list.splice(i, 1);
+                localStorage.setItem('events', JSON.stringify(list));
+                renderCd();
+            }
+        }
+
+        // ======= 全局数据备份与恢复 =======
+        function exportData() {
+            const sites = localStorage.getItem('mySites') || '[]';
+            const events = localStorage.getItem('events') || '[]';
+            const data = JSON.stringify({ sites: JSON.parse(sites), events: JSON.parse(events) });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([data], {type: 'application/json'}));
+            a.download = 'MyWidgets_Backup.json';
+            a.click();
+        }
+
+        function importData(input) {
+            if (!input.files[0]) return;
+            const reader = new FileReader();
+            reader.onload = (e) => { 
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (Array.isArray(data)) {
+                        localStorage.setItem('mySites', JSON.stringify(data));
+                    } else {
+                        if(data.sites) localStorage.setItem('mySites', JSON.stringify(data.sites));
+                        if(data.events) localStorage.setItem('events', JSON.stringify(data.events));
+                    }
+                    renderNav();
+                    renderCd();
+                    toggleNavModal();
+                    alert("恢复成功！");
+                } catch(err) {
+                    alert("文件格式错误");
+                }
+                input.value = '';
+            };
+            reader.readAsText(input.files[0]);
+        }
+
+        // ======= 初始化 =======
+        updateClock();
+        renderNav();
+    </script>
+</body>
+</html>
