@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>极简时钟导航</title>
+    <title>极简时钟多功能导航</title>
     <style>
         /* ================= 基础样式 ================= */
         body { 
@@ -39,41 +39,53 @@
         /* 统一的悬浮添加按钮 */
         .fab { position: fixed; bottom: 30px; right: 30px; width: 54px; height: 54px; background: #007AFF; color: white; border-radius: 50%; border: none; font-size: 32px; box-shadow: 0 4px 12px rgba(0,122,255,0.3); z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
 
-        /* ================= 倒数日视图 ================= */
-        #view-cd { 
+        /* ================= 倒数日 & 音乐库 共享子视图样式 ================= */
+        .sub-view { 
             display: none; 
             padding: 20px; 
-            padding-bottom: 100px; 
-            min-height: 100vh; 
             box-sizing: border-box; 
             max-width: 500px; 
             margin: auto;
         }
-
-        .cd-header { display: flex; align-items: center; margin-bottom: 20px; margin-top: 20px; }
+        .view-header { display: flex; align-items: center; margin-bottom: 20px; margin-top: 20px; }
         .back-btn { background: white; border: none; padding: 10px 16px; border-radius: 14px; font-size: 15px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.06); color: #1c1c1e; cursor: pointer; }
 
+        /* 倒数日卡片 */
         .cd-card { background: white; padding: 18px; border-radius: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05); cursor: pointer; user-select: none; }
         .date-text { color: #888; font-size: 13px; display: none; margin-top: 4px; }
+
+        /* 音乐库卡片 */
+        #view-music { padding-bottom: 140px; } /* 为底部播放器留出空间 */
+        .music-card { 
+            background: white; padding: 14px 18px; border-radius: 16px; margin-bottom: 12px; 
+            display: flex; justify-content: space-between; align-items: center; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05); 
+        }
+        .music-info { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; color: #1c1c1e; font-weight: 500; margin-right: 10px; }
+        .music-card.active .music-info { color: #007AFF; font-weight: 600; }
+        .music-actions { display: flex; align-items: center; gap: 12px; }
+        .btn-play { background: #007AFF; color: white; border: none; padding: 6px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .music-card.active .btn-play { background: #34c759; }
+
+        /* 毛玻璃底部音频播放器 */
+        .audio-player-wrapper { 
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); 
+            width: 90%; max-width: 460px; background: rgba(255, 255, 255, 0.85); 
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); 
+            padding: 12px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.08); 
+            z-index: 90; border: 1px solid rgba(255,255,255,0.4);
+        }
+        .audio-player-wrapper audio { width: 100%; height: 36px; }
 
         /* ================= 弹窗统一样式 ================= */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 300; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
         .modal-content { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 80%; max-width: 300px; display: flex; flex-direction: column; gap: 12px; }
         .modal-title { margin: 0 0 5px 0; font-size: 18px; font-weight: 600; text-align: center; }
         
-        /* 统一输入框尺寸，放大防止误触和缩放 */
         .input-style { 
-            height: 50px; 
-            padding: 0 15px; 
-            border: 1px solid #ddd; 
-            border-radius: 12px; 
-            font-size: 16px; /* 16px可防止iOS Safari自动缩放 */
-            width: 100%; 
-            box-sizing: border-box; 
-            -webkit-appearance: none; 
-            font-family: inherit;
-            background: white;
-            color: #1c1c1e;
+            height: 50px; padding: 0 15px; border: 1px solid #ddd; border-radius: 12px; 
+            font-size: 16px; width: 100%; box-sizing: border-box; -webkit-appearance: none; 
+            font-family: inherit; background: white; color: #1c1c1e;
         }
         
         .btn-primary { padding: 14px; background: #000; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 16px; cursor: pointer; margin-top: 5px; }
@@ -95,13 +107,28 @@
         <button class="fab" onclick="toggleNavModal()">+</button>
     </div>
 
-    <div id="view-cd">
-        <div class="cd-header">
+    <div id="view-cd" class="sub-view">
+        <div class="view-header">
             <button class="back-btn" onclick="hideCdView()">❮ 返回</button>
         </div>
         
         <div id="cd-list"></div>
         <button class="fab" onclick="openCdModal()">+</button>
+    </div>
+
+    <div id="view-music" class="sub-view">
+        <div class="view-header">
+            <button class="back-btn" onclick="hideMusicView()">❮ 返回</button>
+        </div>
+
+        <div id="playlist"></div>
+        
+        <div class="audio-player-wrapper">
+            <audio id="audioPlayer" controls></audio>
+        </div>
+
+        <button class="fab" onclick="document.getElementById('fileInput').click()">+</button>
+        <input type="file" id="fileInput" accept="audio/mp3" multiple style="display:none">
     </div>
 
     <div id="nav-modal" class="modal">
@@ -137,9 +164,18 @@
             document.getElementById('view-cd').style.display = 'block';
             renderCd();
         }
-
         function hideCdView() {
             document.getElementById('view-cd').style.display = 'none';
+            document.getElementById('view-home').style.display = 'flex';
+        }
+
+        function showMusicView() {
+            document.getElementById('view-home').style.display = 'none';
+            document.getElementById('view-music').style.display = 'block';
+            if(db) loadPlaylist();
+        }
+        function hideMusicView() {
+            document.getElementById('view-music').style.display = 'none';
             document.getElementById('view-home').style.display = 'flex';
         }
 
@@ -151,21 +187,29 @@
         }
         setInterval(updateClock, 1000);
 
-        // ======= 导航逻辑 (包含固定的倒数日入口) =======
+        // ======= 导航逻辑 (包含固定的 倒数日 + 音乐库 入口) =======
         function renderNav() {
             const sites = JSON.parse(localStorage.getItem('mySites') || '[]');
             const container = document.getElementById('nav-container');
             const fragment = document.createDocumentFragment();
             
-            // 1. 固定添加倒数日入口 (样式与普通网址一致)
+            // 1. 固定添加倒数日入口
             const cdBtn = document.createElement('div');
             cdBtn.className = 'nav-item';
             cdBtn.innerText = '倒数日';
             cdBtn.style.cursor = 'pointer';
             cdBtn.onclick = showCdView;
             fragment.appendChild(cdBtn);
+
+            // 2. 固定添加音乐库入口
+            const musicBtn = document.createElement('div');
+            musicBtn.className = 'nav-item';
+            musicBtn.innerText = '音乐库';
+            musicBtn.style.cursor = 'pointer';
+            musicBtn.onclick = showMusicView;
+            fragment.appendChild(musicBtn);
             
-            // 2. 渲染用户保存的网址
+            // 3. 渲染用户保存的网址
             sites.forEach((site, index) => {
                 const a = document.createElement('a');
                 a.className = 'nav-item';
@@ -180,7 +224,7 @@
             container.appendChild(fragment);
         }
 
-        // 高性能事件委托：长按删除
+        // 高性能事件委托：长按删除导航网址
         const navContainer = document.getElementById('nav-container');
         let navTimer;
         navContainer.addEventListener('touchstart', (e) => {
@@ -283,7 +327,125 @@
             }
         }
 
-        // ======= 全局数据备份与恢复 =======
+        // ======= 音乐库核心逻辑 (IndexedDB) =======
+        let db;
+        let currentSongName = "";
+        const audioPlayer = document.getElementById('audioPlayer');
+        const dbRequest = indexedDB.open("MusicDB", 1);
+
+        dbRequest.onupgradeneeded = (e) => { 
+            e.target.result.createObjectStore("songs", { keyPath: "name" }); 
+        };
+        dbRequest.onsuccess = (e) => { 
+            db = e.target.result; 
+        };
+
+        // 导入歌曲文件
+        document.getElementById('fileInput').onchange = (e) => {
+            const tx = db.transaction("songs", "readwrite");
+            Array.from(e.target.files).forEach(file => {
+                tx.objectStore("songs").put({ name: file.name, blob: file });
+            });
+            tx.oncomplete = () => loadPlaylist();
+        };
+
+        // 播放结束自动下一首
+        audioPlayer.onended = () => playNext();
+
+        // 渲染音乐列表（安全的DOM操作，规避特殊字符引起的文件名报错）
+        function loadPlaylist() {
+            const playlist = document.getElementById('playlist');
+            playlist.innerHTML = '';
+            
+            db.transaction("songs").objectStore("songs").openCursor().onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    const songName = cursor.value.name;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'music-card' + (songName === currentSongName ? ' active' : '');
+                    
+                    const info = document.createElement('div');
+                    info.className = 'music-info';
+                    info.innerText = songName;
+                    card.appendChild(info);
+                    
+                    const actions = document.createElement('div');
+                    actions.className = 'music-actions';
+                    
+                    const playBtn = document.createElement('button');
+                    playBtn.className = 'btn-play';
+                    playBtn.innerText = songName === currentSongName ? '播放中' : '播放';
+                    playBtn.onclick = () => playSong(songName);
+                    actions.appendChild(playBtn);
+                    
+                    const delBtn = document.createElement('button');
+                    delBtn.style.cssText = 'border:none; color:#ff3b30; background:none; font-size:13px; cursor:pointer; font-weight:500;';
+                    delBtn.innerText = '删除';
+                    delBtn.onclick = (event) => {
+                        event.stopPropagation();
+                        if (confirm(`确定从本地库中删除 [${songName}] ？`)) {
+                            deleteSong(songName);
+                        }
+                    };
+                    actions.appendChild(delBtn);
+                    
+                    card.appendChild(actions);
+                    playlist.appendChild(card);
+                    cursor.continue();
+                }
+            };
+        }
+
+        // 播放切歌逻辑
+        function playSong(name) {
+            if (audioPlayer.src) URL.revokeObjectURL(audioPlayer.src);
+            currentSongName = name;
+            
+            db.transaction("songs").objectStore("songs").get(name).onsuccess = (e) => {
+                audioPlayer.src = URL.createObjectURL(e.target.result.blob);
+                audioPlayer.play();
+                loadPlaylist(); 
+            };
+        }
+
+        // 顺序轮播下一首
+        function playNext() {
+            const store = db.transaction("songs").objectStore("songs");
+            let found = false;
+            let firstSong = null;
+
+            store.openCursor().onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    if (!firstSong) firstSong = cursor.value.name;
+                    if (found) {
+                        playSong(cursor.value.name);
+                        return;
+                    }
+                    if (cursor.value.name === currentSongName) found = true;
+                    cursor.continue();
+                } else if (firstSong) {
+                    playSong(firstSong); 
+                }
+            };
+        }
+
+        // 删除歌曲逻辑
+        function deleteSong(name) {
+            const tx = db.transaction("songs", "readwrite");
+            tx.objectStore("songs").delete(name);
+            tx.oncomplete = () => {
+                if (currentSongName === name) {
+                    audioPlayer.pause();
+                    audioPlayer.src = '';
+                    currentSongName = '';
+                }
+                loadPlaylist();
+            };
+        }
+
+        // ======= 全局数据备份与恢复 (处理网址和倒数日) =======
         function exportData() {
             const sites = localStorage.getItem('mySites') || '[]';
             const events = localStorage.getItem('events') || '[]';
